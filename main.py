@@ -1,6 +1,7 @@
 import os
 import socket
 import sys
+import ipaddress
 
 ENCODING = 'utf-8'
 CHUNK_SIZE = 1024
@@ -11,16 +12,17 @@ def main():
 
 def createSocket(host:str, port:int):
     '''Creates a TCP socket with given host and port
-       Returns the created socket'''
+       Returns if the socket creation was successful
+       and created socket/exception'''
     try:
         created_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         created_socket.connect((socket.gethostbyname(host), port))
         created_socket.settimeout(1)
-        return created_socket
+        return True, created_socket
     except Exception as exc:
-        print(exc)
         created_socket.close()
-        sys.exit(-1)
+        return False, exc
+        
     
 def sendMessage(given_socket:socket, message:str):
     '''Send the message into the given socket
@@ -28,7 +30,6 @@ def sendMessage(given_socket:socket, message:str):
     encoded_message = message.encode(ENCODING)
     message_length = len(encoded_message)
     total_sent = 0
-    given_socket.send('MESG'.encode(ENCODING))
     while total_sent < message_length:
         try:
             sent_len = given_socket.send(encoded_message[total_sent:])
@@ -42,11 +43,14 @@ def sendMessage(given_socket:socket, message:str):
     return total_sent
 
 def sendFile(given_socket:socket, path:str):
-    '''Read file from path and send it via socket
+    '''Read file from path
+       Send 16bits to specify file transfer(\xff\x00)
+       Send file name
+       Send content of file as binary data
        Returns total bytes sent or error'''
     with open(path, 'rb') as f:
         fileName = os.path.basename(path)
-        given_socket.send('FILE'.encode(ENCODING))
+        given_socket.send(b'\xff\x00') #Sending some random bits. I hope it works.
         given_socket.send(fileName.encode(ENCODING))
 
         while True:
@@ -58,15 +62,33 @@ def sendFile(given_socket:socket, path:str):
                 try:
                     sent_len = given_socket.send(data)
                 except:
-                    pass
+                    print('Something went wrong on socket transmission...')
+                    given_socket.close()
+                    total_sent += sent_len
+                    return total_sent
                 finally:
                     total_sent += sent_len
 
         f.close()
 
+def check_port(host_ip:str, port:int):
+    '''Call create_socket check if connection was refused
+       Returns if connection was refused'''
+    res, s = createSocket(host_ip, port)
+    if type(s) == socket.socket:
+        s.close()
+    return res
 
+def scan_ports(host_ip_start:str, host_ip_end:str):
+    ip_start = ipaddress.IPv4Address(host_ip_start)
+    ip_end = ipaddress.IPv4Address(host_ip_end)
 
-    
+    while ip_start < ip_end:
+        for port in range(1024):
+            is_port_open = check_port(str(ip_start), port)
+            if is_port_open:
+                print(f'{ip_start}\t{port}\t{is_port_open}')
+        ip_start += 1
 
 
 if __name__ == '__main__':
