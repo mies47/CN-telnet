@@ -4,6 +4,7 @@ import sys
 import ipaddress
 import json
 import signal
+import subprocess
 
 ENCODING = 'utf-8'
 CHUNK_SIZE = 1024
@@ -20,6 +21,16 @@ def main():
 
     if(sys.argv[1] == 'scan'):
         scan_ports(sys.argv[2], sys.argv[3])
+
+    elif(sys.argv[1] == 'upload'):
+        try:
+            res, s = createSocket(sys.argv[3], int(sys.argv[4]), 1)
+            if res:
+                sendFile(s, sys.argv[2])
+        except Exception as exc:
+            s.close()
+            print(exc)
+            sys.exit(-1)
     
     else:
         res, s = createSocket(sys.argv[1], int(sys.argv[2]), 1)
@@ -41,11 +52,13 @@ def main():
         else:
             print(s)
 
+
 def sigint_handler(sig, frame):
     'Capture SIGINT signal and exit program'
 
     print('\nYou pressed Ctrl+C! QUITING...')
     sys.exit(0)
+
 
 def createSocket(host:str, port:int, timeout:float):
     '''Creates a TCP socket with given host and port
@@ -81,6 +94,7 @@ def sendMessage(given_socket:socket.socket, message:str):
             total_sent += sent_len
     return total_sent
 
+
 def recvMessage(given_socket:socket.socket):
     '''Read content of socket until time out occurs
        Returns the decoded read data'''
@@ -89,11 +103,19 @@ def recvMessage(given_socket:socket.socket):
     while True:
         try:
             data = given_socket.recv(CHUNK_SIZE)
+            if data == b'\xff\x00':
+                return 'File'
             if not data:
                 return full_text
             full_text += data.decode(ENCODING)
         except:
             return full_text
+
+def execCommand(command:str):
+    'Execute given command in my terminal'
+    result = subprocess.run(command, stdout=subprocess.PIPE)
+    return result.stdout, result.stderr
+
 
 def sendFile(given_socket:socket.socket, path:str):
     '''Read file from path
@@ -125,6 +147,22 @@ def sendFile(given_socket:socket.socket, path:str):
 
         f.close()
 
+
+def recvFile(given_socket:socket.socket):
+    '''Read file name and content from socket
+       If the first 16bits are \xff\x00'''
+
+    data = given_socket.recv(1024)
+    name = data.decode('utf-8')
+    with open(name, 'wb') as f:
+        while True:
+            data = given_socket.recv(1024)
+            if not data:
+                break
+            f.write(data)
+        f.close()
+
+
 def check_port(host_ip:str, port:int):
     '''Call create_socket check if connection was refused
        Returns if connection was refused'''
@@ -133,6 +171,7 @@ def check_port(host_ip:str, port:int):
     if type(s) == socket.socket:
         s.close()
     return res
+
 
 def scan_ports(host_ip_start:str, host_ip_end:str):
     '''Scans over the range of IPs given through port 0 to 1024
@@ -154,6 +193,7 @@ def scan_ports(host_ip_start:str, host_ip_end:str):
             else:
                 print ("\033[A                             \033[A")
         ip_start += 1
+
 
 def get_multi_line_input():
     '''Gets input multiple times until user inputs done
