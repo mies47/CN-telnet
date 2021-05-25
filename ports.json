@@ -1,0 +1,450 @@
+{
+    "1": {
+      "name": "tcpmux",
+      "comment": "TCP port service multiplexer"
+    },
+    "5": {
+      "name": "rje",
+      "comment": "Remote Job Entry"
+    },
+    "7": {
+      "name": "echo",
+      "comment": "Echo service"
+    },
+    "9": {
+      "name": "discard",
+      "comment": "Null service for connection testing"
+    },
+    "11": {
+      "name": "systat",
+      "comment": "System Status service for listing connected ports"
+    },
+    "13": {
+      "name": "daytime",
+      "comment": "Sends date and time to requesting host"
+    },
+    "17": {
+      "name": "qotd",
+      "comment": "Sends quote of the day to connected host"
+    },
+    "18": {
+      "name": "msp",
+      "comment": "Message Send Protocol"
+    },
+    "19": {
+      "name": "chargen",
+      "comment": "Character Generation service; sends endless stream of characters"
+    },
+    "20": {
+      "name": "ftp-data",
+      "comment": "FTP data port"
+    },
+    "21": {
+      "name": "ftp",
+      "comment": "File Transfer Protocol (FTP) port; sometimes used by File Service Protocol (FSP)"
+    },
+    "22": {
+      "name": "ssh",
+      "comment": "Secure Shell (SSH) service"
+    },
+    "23": {
+      "name": "telnet",
+      "comment": "The Telnet service"
+    },
+    "25": {
+      "name": "smtp",
+      "comment": "Simple Mail Transfer Protocol (SMTP)"
+    },
+    "37": {
+      "name": "time",
+      "comment": "Time Protocol"
+    },
+    "39": {
+      "name": "rlp",
+      "comment": "Resource Location Protocol"
+    },
+    "42": {
+      "name": "nameserver",
+      "comment": "Internet Name Service"
+    },
+    "43": {
+      "name": "nicname",
+      "comment": "WHOIS directory service"
+    },
+    "49": {
+      "name": "tacacs",
+      "comment": "Terminal Access Controller Access Control System for TCP/IP based authentication and access"
+    },
+    "50": {
+      "name": "re-mail-ck",
+      "comment": "Remote Mail Checking Protocol"
+    },
+    "53": {
+      "name": "domain",
+      "comment": "domain name services (such as BIND)"
+    },
+    "63": {
+      "name": "whois++",
+      "comment": "WHOIS++, extended WHOIS services"
+    },
+    "67": {
+      "name": "bootps",
+      "comment": "Bootstrap Protocol (BOOTP) services; also used by Dynamic Host Configuration Protocol (DHCP) services"
+    },
+    "68": {
+      "name": "bootpc",
+      "comment": "Bootstrap (BOOTP) client; also used by Dynamic Host Control Protocol (DHCP) clients"
+    },
+    "69": {
+      "name": "tftp",
+      "comment": "Trivial File Transfer Protocol (TFTP)"
+    },
+    "70": {
+      "name": "gopher",
+      "comment": "Gopher Internet document search and retrieval"
+    },
+    "71": {
+      "name": "netrjs-1",
+      "comment": "Remote Job Service"
+    },
+    "72": {
+      "name": "netrjs-2",
+      "comment": "Remote Job Service"
+    },
+    "73": {
+      "name": "netrjs-4",
+      "comment": "Remote Job Service"
+    },
+    "79": {
+      "name": "finger",
+      "comment": "Finger service for user contact information"
+    },
+    "80": {
+      "name": "http",
+      "comment": "HyperText Transfer Protocol (HTTP) for World Wide Web (WWW) services"
+    },
+    "88": {
+      "name": "kerberos",
+      "comment": "Kerberos network authentication system"
+    },
+    "95": {
+      "name": "supdup",
+      "comment": "Telnet protocol extension"
+    },
+    "101": {
+      "name": "hostname",
+      "comment": "Hostname services on SRI-NIC machines"
+    },
+    "102": {
+      "name": "iso-tsap",
+      "comment": "ISO Development Environment (ISODE) network applications"
+    },
+    "105": {
+      "name": "csnet-ns",
+      "comment": "Mailbox nameserver; also used by CSO nameserver"
+    },
+    "107": {
+      "name": "rtelnet",
+      "comment": "Remote Telnet"
+    },
+    "109": {
+      "name": "pop2",
+      "comment": "Post Office Protocol version 2"
+    },
+    "110": {
+      "name": "pop3",
+      "comment": "Post Office Protocol version 3"
+    },
+    "111": {
+      "name": "sunrpc",
+      "comment": "Remote Procedure Call (RPC) Protocol for remote command execution, used by Network Filesystem (NFS)"
+    },
+    "113": {
+      "name": "auth",
+      "comment": "Authentication and Ident protocols"
+    },
+    "115": {
+      "name": "sftp",
+      "comment": "Secure File Transfer Protocol (SFTP) services"
+    },
+    "117": {
+      "name": "uucp-path",
+      "comment": "Unix-to-Unix Copy Protocol (UUCP) Path services"
+    },
+    "119": {
+      "name": "nntp",
+      "comment": "Network News Transfer Protocol (NNTP) for the USENET discussion system"
+    },
+    "123": {
+      "name": "ntp",
+      "comment": "Network Time Protocol (NTP)"
+    },
+    "137": {
+      "name": "netbios-ns",
+      "comment": "NETBIOS Name Service used in Red Hat Enterprise Linux by Samba"
+    },
+    "138": {
+      "name": "netbios-dgm",
+      "comment": "NETBIOS Datagram Service used in Red Hat Enterprise Linux by Samba"
+    },
+    "139": {
+      "name": "netbios-ssn",
+      "comment": "NETBIOS Session Service used in Red Hat Enterprise Linux by Samba"
+    },
+    "143": {
+      "name": "imap",
+      "comment": "Internet Message Access Protocol (IMAP)"
+    },
+    "161": {
+      "name": "snmp",
+      "comment": "Simple Network Management Protocol (SNMP)"
+    },
+    "162": {
+      "name": "snmptrap",
+      "comment": "Traps for SNMP"
+    },
+    "163": {
+      "name": "cmip-man",
+      "comment": "Common Management Information Protocol (CMIP)"
+    },
+    "164": {
+      "name": "cmip-agent",
+      "comment": "Common Management Information Protocol (CMIP)"
+    },
+    "174": {
+      "name": "mailq",
+      "comment": "MAILQ email transport queue"
+    },
+    "177": {
+      "name": "xdmcp",
+      "comment": "X Display Manager Control Protocol (XDMCP)"
+    },
+    "178": {
+      "name": "nextstep",
+      "comment": "NeXTStep window server"
+    },
+    "179": {
+      "name": "bgp",
+      "comment": "Border Gateway Protocol"
+    },
+    "191": {
+      "name": "prospero",
+      "comment": "Prospero distributed filesystem services"
+    },
+    "194": {
+      "name": "irc",
+      "comment": "Internet Relay Chat (IRC)"
+    },
+    "199": {
+      "name": "smux",
+      "comment": "SNMP UNIX Multiplexer"
+    },
+    "201": {
+      "name": "at-rtmp",
+      "comment": "AppleTalk routing"
+    },
+    "202": {
+      "name": "at-nbp",
+      "comment": "AppleTalk name binding"
+    },
+    "204": {
+      "name": "at-echo",
+      "comment": "AppleTalk echo"
+    },
+    "206": {
+      "name": "at-zis",
+      "comment": "AppleTalk zone information"
+    },
+    "209": {
+      "name": "qmtp",
+      "comment": "Quick Mail Transfer Protocol (QMTP)"
+    },
+    "210": {
+      "name": "z39.50",
+      "comment": "NISO Z39.50 database"
+    },
+    "213": {
+      "name": "ipx",
+      "comment": "Internetwork Packet Exchange (IPX), a datagram protocol commonly used in Novell Netware environments"
+    },
+    "220": {
+      "name": "imap3",
+      "comment": "Internet Message Access Protocol version 3"
+    },
+    "245": {
+      "name": "link",
+      "comment": "LINK / 3-DNS iQuery service"
+    },
+    "347": {
+      "name": "fatserv",
+      "comment": "FATMEN file and tape management server"
+    },
+    "363": {
+      "name": "rsvp_tunnel",
+      "comment": "RSVP Tunnel"
+    },
+    "369": {
+      "name": "rpc2portmap",
+      "comment": "Coda file system portmapper"
+    },
+    "370": {
+      "name": "codaauth2",
+      "comment": "Coda file system authentication services"
+    },
+    "372": {
+      "name": "ulistproc",
+      "comment": "UNIX LISTSERV"
+    },
+    "389": {
+      "name": "ldap",
+      "comment": "Lightweight Directory Access Protocol (LDAP)"
+    },
+    "427": {
+      "name": "svrloc",
+      "comment": "Service Location Protocol (SLP)"
+    },
+    "434": {
+      "name": "mobileip-agent",
+      "comment": "Mobile Internet Protocol (IP) agent"
+    },
+    "435": {
+      "name": "mobilip-mn",
+      "comment": "Mobile Internet Protocol (IP) manager"
+    },
+    "443": {
+      "name": "https",
+      "comment": "Secure Hypertext Transfer Protocol (HTTP)"
+    },
+    "444": {
+      "name": "snpp",
+      "comment": "Simple Network Paging Protocol"
+    },
+    "445": {
+      "name": "microsoft-ds",
+      "comment": "Server Message Block (SMB) over TCP/IP"
+    },
+    "464": {
+      "name": "kpasswd",
+      "comment": "Kerberos password and key changing services"
+    },
+    "468": {
+      "name": "photuris",
+      "comment": "Photuris session key management protocol"
+    },
+    "487": {
+      "name": "saft",
+      "comment": "Simple Asynchronous File Transfer (SAFT) protocol"
+    },
+    "488": {
+      "name": "gss-http",
+      "comment": "Generic Security Services (GSS) for HTTP"
+    },
+    "496": {
+      "name": "pim-rp-disc",
+      "comment": "Rendezvous Point Discovery (RP-DISC) for Protocol Independent Multicast (PIM) services"
+    },
+    "500": {
+      "name": "isakmp",
+      "comment": "Internet Security Association and Key Management Protocol (ISAKMP)"
+    },
+    "535": {
+      "name": "iiop",
+      "comment": "Internet Inter-Orb Protocol (IIOP)"
+    },
+    "538": {
+      "name": "gdomap",
+      "comment": "GNUstep Distributed Objects Mapper (GDOMAP)"
+    },
+    "546": {
+      "name": "dhcpv6-client",
+      "comment": "Dynamic Host Configuration Protocol (DHCP) version 6 client"
+    },
+    "547": {
+      "name": "dhcpv6-server",
+      "comment": "Dynamic Host Configuration Protocol (DHCP) version 6 Service"
+    },
+    "554": {
+      "name": "rtsp",
+      "comment": "Real Time Stream Control Protocol (RTSP)"
+    },
+    "563": {
+      "name": "nntps",
+      "comment": "Network News Transport Protocol over Secure Sockets Layer (NNTPS)"
+    },
+    "565": {
+      "name": "whoami",
+      "comment": "whoami user ID listing"
+    },
+    "587": {
+      "name": "submission",
+      "comment": "Mail Message Submission Agent (MSA)"
+    },
+    "610": {
+      "name": "npmp-local",
+      "comment": "Network Peripheral Management Protocol (NPMP) local / Distributed Queueing System (DQS)"
+    },
+    "611": {
+      "name": "npmp-gui",
+      "comment": "Network Peripheral Management Protocol (NPMP) GUI / Distributed Queueing System (DQS)"
+    },
+    "612": {
+      "name": "hmmp-ind",
+      "comment": "HyperMedia Management Protocol (HMMP) Indication / DQS"
+    },
+    "631": {
+      "name": "ipp",
+      "comment": "Internet Printing Protocol (IPP)"
+    },
+    "636": {
+      "name": "ldaps",
+      "comment": "Lightweight Directory Access Protocol over Secure Sockets Layer (LDAPS)"
+    },
+    "674": {
+      "name": "acap",
+      "comment": "Application Configuration Access Protocol (ACAP)"
+    },
+    "694": {
+      "name": "ha-cluster",
+      "comment": "Heartbeat services for High-Availability Clusters"
+    },
+    "749": {
+      "name": "kerberos-adm",
+      "comment": "Kerberos version 5 (v5) 'kadmin' database administration"
+    },
+    "750": {
+      "name": "kerberos-iv",
+      "comment": "Kerberos version 4 (v4) services"
+    },
+    "765": {
+      "name": "webster",
+      "comment": "Network Dictionary"
+    },
+    "767": {
+      "name": "phonebook",
+      "comment": "Network Phonebook"
+    },
+    "873": {
+      "name": "rsync",
+      "comment": "rsync file transfer services"
+    },
+    "992": {
+      "name": "telnets",
+      "comment": "Telnet over Secure Sockets Layer (TelnetS)"
+    },
+    "993": {
+      "name": "imaps",
+      "comment": "Internet Message Access Protocol over Secure Sockets Layer (IMAPS)"
+    },
+    "994": {
+      "name": "ircs",
+      "comment": "Internet Relay Chat over Secure Sockets Layer (IRCS)"
+    },
+    "995": {
+      "name": "pop3s",
+      "comment": "Post Office Protocol version 3 over Secure Sockets Layer (POP3S)"
+    },
+    "102/tcp": {
+      "name": "iso-tsap",
+      "comment": "ISO Development Environment (ISODE) network applications"
+    }
+  }
