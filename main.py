@@ -11,53 +11,100 @@ CHUNK_SIZE = 1024
 PORTS_FILE = open('ports.json', 'r')
 PORTS_DIC = json.load(PORTS_FILE)
 PORTS_FILE.close()
+MAX_RETRY = 10
 
 def main():
     'Main method'
 
-    if len(sys.argv) < 3:
+    if len(sys.argv) < 2:
         print('need more args!!')
         sys.exit(-1)
 
-    if(sys.argv[1] == 'scan'):
-        scan_ports(sys.argv[2], sys.argv[3])
+    if sys.argv[1] == 'client':
+        print('Entering client mode...')
+        client_mode()
 
-    elif(sys.argv[1] == 'upload'):
-        try:
-            res, s = createSocket(sys.argv[3], int(sys.argv[4]), 1)
-            if res:
-                sendFile(s, sys.argv[2])
-        except Exception as exc:
-            s.close()
-            print(exc)
-            sys.exit(-1)
-    
-    else:
-        res, s = createSocket(sys.argv[1], int(sys.argv[2]), 1)
-        if res:
-            while True:
-                try:
-                    print('\nWaiting for server...')
-                    msg = recvMessage(s)
-                    print(msg, end='')
-                    print('DONE! Server response is:\n')
-                    inputs = get_multi_line_input()
-                    sendMessage(s, inputs)
-                except socket.timeout:
-                    pass
-                except Exception as e:
-                    s.close()
-                    print(e)
-                    sys.exit()
-        else:
-            print(s)
+    elif sys.argv[1] == 'server':
+        print('Entering server mode...')
+        server_mode()
 
 
 def sigint_handler(sig, frame):
-    'Capture SIGINT signal and exit program'
+    'Capture SIGINT signal and restart program'
 
-    print('\nYou pressed Ctrl+C! QUITING...')
-    sys.exit(0)
+    raise Exception('\nProcess stopped!\n')
+    
+
+def client_mode():
+    '''Enter client mode
+       handle client operations
+       1- Send messages to host and port
+       2- Send and recieve files
+       3- Execute commands on server
+       4- Scan open ports'''
+
+    while True:
+        try:
+            operation = input('telnet>').split(' ')
+        except Exception as exc:
+            print(exc)
+            break
+
+        if operation[0] == 'open':
+            host, port = operation[1], operation[2]
+            connected_socket = establish_connection(host, int(port), 2)
+            if not connected_socket:
+                continue
+            else:
+                while True:
+                    try:
+                        command = input(f'{host}:{port}>').split(' ')
+                    except Exception as exc:
+                        print(exc)
+                        break
+
+                    if command[0] == 'quit':
+                        break
+
+                    if command[0] == 'send' and command[1] == 'message' and command[2] == 'plain': 
+                        #Case 1 send plain message
+                        success = True
+                        while success:
+                            success = send_message_to_host(connected_socket)
+                    
+                    elif command[0] == 'send' and command[1] == 'message' and command[2] == 'encrypt':
+                        #Case 1 send encrypted message
+                        pass
+
+                    elif command[0] == 'exec' and command[1] == 'plain':
+                        #Case 3 send plain command for execution
+                        success = send_message(connected_socket, 'exec ' + ' '.join(command[2: ]))
+                        print('Sent command to server.') if success else print('Transmision failed.')
+                        print('Waiting for server...')
+                        recv_message(connected_socket)
+
+                    elif command[0] == 'exec' and command[1] == 'encrypt':
+                        #Case 3 send encrypted command for execution
+                        pass
+
+                    elif command[0] == 'upload':
+                        #Case 2 upload file
+                        success = send_file(connected_socket, command[1])
+                        print('Transmision was successful.') if success else print('Transmision failed.')
+
+                    elif command[0] == 'download':
+                        #Case 2 download file
+                        send_message(connected_socket, command[1])
+                        success = recv_file(connected_socket)
+                        print('Transmision was successful.') if success else print('Transmision failed.')
+
+        elif operation[0] == 'scan':
+            #Case 4 scan ports
+            scan_ports(operation[1], operation[2])
+
+
+def server_mode():
+    pass
 
 
 def createSocket(host:str, port:int, timeout:float):
@@ -74,28 +121,78 @@ def createSocket(host:str, port:int, timeout:float):
         created_socket.close()
         return False, exc
         
-    
-def sendMessage(given_socket:socket.socket, message:str):
+
+def establish_connection(host:str, port:int, timeout:int) -> socket.socket or None:
+    print(f'Trying to connect to {host}:{port}...')
+    res, created_socket = createSocket(host, port, timeout)
+    if res:
+        try:
+            print('Connection established.\nWaiting for server...')
+            msg = recv_message(created_socket)
+            print(msg, end='')
+            print('DONE! Go ahead')
+            return created_socket
+        except Exception as exc:
+            print(exc)
+            return None
+    else:
+        print(created_socket)
+        return None
+
+
+def send_message(given_socket:socket.socket, message:str):
     '''Send the message into the given socket
        Returns total bytes sent'''
 
     encoded_message = message.encode(ENCODING)
     message_length = len(encoded_message)
     total_sent = 0
-    while total_sent < message_length:
+    retry = MAX_RETRY
+
+    while total_sent < message_length and retry > 0:
         try:
             sent_len = given_socket.send(encoded_message[total_sent:])
-        except:
-            print('Something went wrong on socket transmission...')
+        
+        except socket.timeout:
+            retry -= 1
+            continue
+        
+        except Exception as exc:
+            print(f'Something went wrong...\n{exc}\nTry again!')
             given_socket.close()
             total_sent += sent_len
-            return total_sent
-        finally:
-            total_sent += sent_len
-    return total_sent
+            return False
+        
+        total_sent += sent_len
+
+    return total_sent == message_length
 
 
-def recvMessage(given_socket:socket.socket):
+def send_message_to_host(given_socket:socket.socket):
+    '''Recieve message from input
+       send message nad recieve results'''
+
+    try:
+        inputs = get_multi_line_input()
+        success = send_message(given_socket, inputs)
+
+        if not success:
+            print('Could not transmit message.')
+            return False
+
+        print('\nWaiting for server...')
+        msg = recv_message(given_socket)
+        print(msg, end='')
+        print('Server response recieved!')
+        return True
+
+    except Exception as e:
+        given_socket.close()
+        print(e)
+        return False
+        
+
+def recv_message(given_socket:socket.socket):
     '''Read content of socket until time out occurs
        Returns the decoded read data'''
 
@@ -103,33 +200,34 @@ def recvMessage(given_socket:socket.socket):
     while True:
         try:
             data = given_socket.recv(CHUNK_SIZE)
-            if data == b'\xff\x00':
-                return 'File'
             if not data:
                 return full_text
             full_text += data.decode(ENCODING)
-        except:
+        except socket.timeout:
+            return full_text
+        except Exception as exc:
+            print(exc)
             return full_text
 
-def execCommand(command:str):
-    'Execute given command in my terminal'
+
+def exec_command(command:str):
+    'Execute given command in server terminal'
     result = subprocess.run(command, stdout=subprocess.PIPE)
     return result.stdout, result.stderr
 
 
-def sendFile(given_socket:socket.socket, path:str):
+def send_file(given_socket:socket.socket, path:str):
     '''Read file from path
-       Send 16bits to specify file transfer(\xff\x00)
        Send file name
        Send content of file as binary data
        Returns total bytes sent or error'''
 
     with open(path, 'rb') as f:
         fileName = os.path.basename(path)
-        given_socket.send(b'\xff\x00') #Sending some random bits. I hope it works.
         given_socket.send(fileName.encode(ENCODING))
+        retry = MAX_RETRY
 
-        while True:
+        while retry > 0:
             data = f.read(CHUNK_SIZE)
             if len(data) == 0:
                 break
@@ -137,30 +235,41 @@ def sendFile(given_socket:socket.socket, path:str):
             while total_sent < len(data):
                 try:
                     sent_len = given_socket.send(data)
-                except:
-                    print('Something went wrong on socket transmission...')
+
+                except socket.timeout:
+                    retry -= 1
+                    continue
+                
+                except Exception as exc:
+                    print(f'Something went wrong...\n{exc}\nTry again!')
                     given_socket.close()
                     total_sent += sent_len
-                    return total_sent
-                finally:
-                    total_sent += sent_len
+                    return False
+                
+                total_sent += sent_len
 
         f.close()
+        return retry > 0
 
 
-def recvFile(given_socket:socket.socket):
-    '''Read file name and content from socket
-       If the first 16bits are \xff\x00'''
+def recv_file(given_socket:socket.socket):
+    'Read file name and content from socket'
 
     data = given_socket.recv(1024)
+
+    if not data:
+        print('Could not recieve name!\nQuiting...')
+        return False
+
     name = data.decode('utf-8')
     with open(name, 'wb') as f:
         while True:
             data = given_socket.recv(1024)
             if not data:
-                break
+                f.close()
+                return True
             f.write(data)
-        f.close()
+    
 
 
 def check_port(host_ip:str, port:int):
