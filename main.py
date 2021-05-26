@@ -5,6 +5,7 @@ import ipaddress
 import json
 import signal
 import subprocess
+import ssl
 
 ENCODING = 'utf-8'
 CHUNK_SIZE = 1024
@@ -56,6 +57,10 @@ def client_mode():
             if not connected_socket:
                 continue
             else:
+                if len(operation) > 3 and operation[3] == '-e':
+                    context = ssl.create_default_context()
+                    connected_socket.settimeout(12)
+                    connected_socket = context.wrap_socket(connected_socket, server_hostname=host)
                 while True:
                     try:
                         command = input(f'{host}:{port}>').split(' ')
@@ -66,26 +71,19 @@ def client_mode():
                     if command[0] == 'quit':
                         break
 
-                    if command[0] == 'send' and command[1] == 'message' and command[2] == 'plain': 
-                        #Case 1 send plain message
+                    if command[0] == 'send' and command[1] == 'message': 
+                        #Case 1 send message
                         success = True
                         while success:
                             success = send_message_to_host(connected_socket)
                     
-                    elif command[0] == 'send' and command[1] == 'message' and command[2] == 'encrypt':
-                        #Case 1 send encrypted message
-                        pass
-
-                    elif command[0] == 'exec' and command[1] == 'plain':
-                        #Case 3 send plain command for execution
+                    elif command[0] == 'exec':
+                        #Case 3 send  command for execution
                         success = send_message(connected_socket, 'exec ' + ' '.join(command[2: ]))
                         print('Sent command to server.') if success else print('Transmision failed.')
                         print('Waiting for server...')
                         recv_message(connected_socket)
 
-                    elif command[0] == 'exec' and command[1] == 'encrypt':
-                        #Case 3 send encrypted command for execution
-                        pass
 
                     elif command[0] == 'upload':
                         #Case 2 upload file
