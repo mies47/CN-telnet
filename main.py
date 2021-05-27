@@ -6,9 +6,10 @@ import json
 import signal
 import subprocess
 import ssl
+import threading
 
 ENCODING = 'utf-8'
-CHUNK_SIZE = 1024
+CHUNK_SIZE = 4096
 PORTS_FILE = open('ports.json', 'r')
 PORTS_DIC = json.load(PORTS_FILE)
 PORTS_FILE.close()
@@ -27,7 +28,8 @@ def main():
 
     elif sys.argv[1] == 'server':
         print('Entering server mode...')
-        server_mode()
+        server_mode(int(sys.argv[2]))
+
 
 
 def sigint_handler(sig, frame):
@@ -53,13 +55,13 @@ def client_mode():
 
         if operation[0] == 'open':
             host, port = operation[1], operation[2]
-            connected_socket = establish_connection(host, int(port), 2)
+            connected_socket = establish_connection(host, int(port), 5)
             if not connected_socket:
                 continue
             else:
-                if len(operation) > 3 and operation[3] == '-e':
+                if len(operation) > 3 and operation[3] == '-e': # Check if encryption is desired
                     context = ssl.create_default_context()
-                    connected_socket.settimeout(12)
+                    connected_socket.settimeout(12) # Increase timeout to compensate for input time
                     connected_socket = context.wrap_socket(connected_socket, server_hostname=host)
                 while True:
                     try:
@@ -69,7 +71,11 @@ def client_mode():
                         break
 
                     if command[0] == 'quit':
+                        send_message(connected_socket, 'quit')
+                        print('Waiting for server...')
+                        recv_message(connected_socket)
                         break
+
 
                     if command[0] == 'send' and command[1] == 'message': 
                         #Case 1 send message
@@ -79,31 +85,75 @@ def client_mode():
                     
                     elif command[0] == 'exec':
                         #Case 3 send  command for execution
-                        success = send_message(connected_socket, 'exec ' + ' '.join(command[2: ]))
+                        success = send_message(connected_socket, ' '.join(command))
                         print('Sent command to server.') if success else print('Transmision failed.')
                         print('Waiting for server...')
-                        recv_message(connected_socket)
+                        print(recv_message(connected_socket))
 
 
                     elif command[0] == 'upload':
                         #Case 2 upload file
+                        fileName = os.path.basename(command[1])
+                        send_message(connected_socket, 'upload' + fileName + (CHUNK_SIZE - len(fileName) - 6)* ' ')
                         success = send_file(connected_socket, command[1])
                         print('Transmision was successful.') if success else print('Transmision failed.')
+                        print(recv_message(connected_socket))
 
                     elif command[0] == 'download':
                         #Case 2 download file
-                        send_message(connected_socket, command[1])
-                        success = recv_file(connected_socket)
+                        fileName = os.path.basename(command[1])
+                        send_message(connected_socket, 'download' + command[1] + (CHUNK_SIZE - len(command[1]) - 8)* ' ')
+                        success = recv_file(connected_socket, fileName)
                         print('Transmision was successful.') if success else print('Transmision failed.')
+                
+                connected_socket.close()
 
         elif operation[0] == 'scan':
             #Case 4 scan ports
             scan_ports(operation[1], operation[2])
 
 
-def server_mode():
-    pass
+def server_mode(port:int, encrypt:bool=False):
+    '''Enter server mode
+       Listen on the given port'''
 
+    try:
+        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_socket.bind(('127.0.0.1', port))
+        server_socket.listen()
+
+        if encrypt:
+            context = ssl.create_default_context()
+            server_socket = context.wrap_socket(server_socket, server_side=True)
+        else:
+            pass
+
+        while True:
+            connection, info = server_socket.accept()
+            client_thread = threading.Thread(target=client_handler, args=(connection, info))
+            client_thread.start()
+
+    except Exception as exc:
+        print(exc)
+        server_socket.shutdown(socket.SHUT_RDWR)
+        server_socket.close()
+    
+
+def client_handler(given_socket:socket.socket, info:tuple):
+    'Handle each connection to server'
+
+    try:
+        print(f'Client {info[0]}:{info[1]} Connected.')
+        send_message(given_socket, '[Server response] Connected...\n')
+
+        result = True
+        while result:
+            result = recv_and_proccess(given_socket)
+
+    except Exception as exc:
+        print(exc)
+        given_socket.shutdown(socket.SHUT_RDWR)
+        given_socket.close()
 
 def createSocket(host:str, port:int, timeout:float):
     '''Creates a TCP socket with given host and port
@@ -208,6 +258,47 @@ def recv_message(given_socket:socket.socket):
             return full_text
 
 
+def recv_and_proccess(given_socket:socket.socket):
+    '''Recieve messages and echo it back
+       Execute commands echo back result
+       Upload and download files'''
+
+    try:
+        first_run = ''
+        
+        while not first_run:
+            first_run = given_socket.recv(CHUNK_SIZE).decode(ENCODING)
+
+
+        if first_run.startswith('upload'):
+            name = first_run.replace('upload', '').replace(' ', '')
+            result = recv_file(given_socket, name)
+            send_message(given_socket, f'[Server response] Recieved {result} bytes.\n')
+            return True
+
+        elif first_run.startswith('exec'):
+            out, err = exec_command(first_run[len('exec '):])
+            send_message(given_socket, f'[Server response]\nOutput:\n{out.decode(ENCODING)}\nError:\n{err}\n')
+            return True
+
+        elif first_run.startswith('download'):
+            path = first_run.replace('download', '').replace(' ', '')
+            send_file(given_socket, path)
+            return True
+
+        elif first_run == 'quit':
+            send_message(given_socket, f'[Server response] Disconnecting...\n')
+            given_socket.close()
+            return False
+        
+        else:
+            send_message(given_socket, f'[Server response] Got {len(first_run)} of your message.\n')
+            return True
+
+    except Exception as exc:
+        print(exc)
+
+
 def exec_command(command:str):
     'Execute given command in server terminal'
     result = subprocess.run(command, stdout=subprocess.PIPE)
@@ -220,9 +311,9 @@ def send_file(given_socket:socket.socket, path:str):
        Send content of file as binary data
        Returns total bytes sent or error'''
 
+    size = os.path.getsize(path)
     with open(path, 'rb') as f:
-        fileName = os.path.basename(path)
-        given_socket.send(fileName.encode(ENCODING))
+        send_message(given_socket, str(size) + (CHUNK_SIZE - len(str(size)))* ' ')
         retry = MAX_RETRY
 
         while retry > 0:
@@ -245,28 +336,25 @@ def send_file(given_socket:socket.socket, path:str):
                     return False
                 
                 total_sent += sent_len
+                print(f'Sent {sent_len}')
 
         f.close()
         return retry > 0
 
 
-def recv_file(given_socket:socket.socket):
+def recv_file(given_socket:socket.socket, name: str):
     'Read file name and content from socket'
 
-    data = given_socket.recv(1024)
-
-    if not data:
-        print('Could not recieve name!\nQuiting...')
-        return False
-
-    name = data.decode('utf-8')
+    total_size = 0
+    file_size = int(given_socket.recv(CHUNK_SIZE).decode(ENCODING).replace(' ', ''))
     with open(name, 'wb') as f:
-        while True:
-            data = given_socket.recv(1024)
-            if not data:
-                f.close()
-                return True
+        while file_size > total_size:
+            data = given_socket.recv(CHUNK_SIZE)
             f.write(data)
+            print(f'Recieved {len(data)}')
+            total_size += len(data)
+        f.close()
+        return(total_size)
     
 
 
