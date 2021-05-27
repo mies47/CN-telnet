@@ -7,6 +7,10 @@ import signal
 import subprocess
 import ssl
 import threading
+import psycopg2 as pg
+import pandas as pd
+from datetime import datetime
+from getpass import getpass
 
 ENCODING = 'utf-8'
 CHUNK_SIZE = 4096
@@ -28,7 +32,8 @@ def main():
 
     elif sys.argv[1] == 'server':
         print('Entering server mode...')
-        server_mode(int(sys.argv[2]))
+        encrypt = len(sys.argv) > 3 and sys.argv[3] == '-e'
+        server_mode(int(sys.argv[2]), encrypt)
 
 
 
@@ -46,6 +51,10 @@ def client_mode():
        3- Execute commands on server
        4- Scan open ports'''
 
+
+    print('Want to connect to database to save commands for history...')
+    connection = connect_to_database()
+
     while True:
         try:
             operation = input('telnet>').split(' ')
@@ -53,6 +62,7 @@ def client_mode():
             print(exc)
             break
 
+        add_history(connection, ' '.join(operation))
         if operation[0] == 'open':
             host, port = operation[1], operation[2]
             connected_socket = establish_connection(host, int(port), 5)
@@ -69,6 +79,8 @@ def client_mode():
                     except Exception as exc:
                         print(exc)
                         break
+
+                    add_history(connection, ' '.join(command))
 
                     if command[0] == 'quit':
                         send_message(connected_socket, 'quit')
@@ -111,6 +123,10 @@ def client_mode():
         elif operation[0] == 'scan':
             #Case 4 scan ports
             scan_ports(operation[1], operation[2])
+        
+        elif operation[0] == 'history':
+            #Case 5 get all histories
+            get_history(connection)
 
 
 def server_mode(port:int, encrypt:bool=False):
@@ -123,10 +139,10 @@ def server_mode(port:int, encrypt:bool=False):
         server_socket.listen()
 
         if encrypt:
-            context = ssl.create_default_context()
+            context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            context.load_default_certs(purpose=ssl.Purpose.SERVER_AUTH)
             server_socket = context.wrap_socket(server_socket, server_side=True)
-        else:
-            pass
+        
 
         while True:
             connection, info = server_socket.accept()
@@ -401,6 +417,48 @@ def get_multi_line_input():
             all_inputs.append('')
             return '\r\n'.join(all_inputs)
         all_inputs.append(recent_input)
+
+
+def connect_to_database():
+    'Get user and pass and connect to database'
+
+    try:
+        db_user = input('Username: ')
+        db_password = getpass('Password: ')
+        connection = pg.connect(user=db_user,password=db_password,host="127.0.0.1",port="5432",database="telnet_history")
+
+        connection.cursor().execute('''CREATE TABLE IF NOT EXISTS history(
+                                        command_id SERIAL PRIMARY KEY,
+                                        used_date TEXT,
+                                        command TEXT
+                                    );''')
+        connection.commit()
+    
+    except Exception as exc:
+        print(f'Database {exc}')
+
+    return connection
+
+def add_history(connection, command: str):
+    'Insert command in database'
+
+    try:
+        cursor = connection.cursor()
+        cursor.execute('''INSERT INTO history (used_date, command) VALUES (%(date_time)s,
+                       %(command)s);''', {'date_time': str(datetime.now()), 'command': command})
+        connection.commit()
+    except Exception as exc:
+        print(f'Database {exc}')
+
+
+def get_history(connection):
+    'Select and read data from database'
+
+    try:
+        result = pd.read_sql_query('SELECT * FROM history', connection)
+        print(pd.DataFrame(result).to_markdown())
+    except Exception as exc:
+        print(f'Database {exc}')
 
 
 if __name__ == '__main__':
