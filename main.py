@@ -5,7 +5,6 @@ import ipaddress
 import json
 import signal
 import subprocess
-import ssl
 import rsa
 import pickle
 import threading
@@ -394,7 +393,7 @@ def recv_and_proccess(given_socket:socket.socket, private_key=None, client_publi
 
 def exec_command(command:str):
     'Execute given command in server terminal'
-    result = subprocess.run(command, stdout=subprocess.PIPE)
+    result = subprocess.run(command.split(' '), stdout=subprocess.PIPE)
     return result.stdout, result.stderr
 
 
