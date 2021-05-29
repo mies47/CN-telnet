@@ -6,6 +6,8 @@ import json
 import signal
 import subprocess
 import ssl
+import rsa
+import pickle
 import threading
 import psycopg2 as pg
 import pandas as pd
@@ -18,6 +20,7 @@ PORTS_FILE = open('ports.json', 'r')
 PORTS_DIC = json.load(PORTS_FILE)
 PORTS_FILE.close()
 MAX_RETRY = 10
+LOG_MODE = False
 
 def main():
     'Main method'
@@ -66,13 +69,15 @@ def client_mode():
         if operation[0] == 'open':
             host, port = operation[1], operation[2]
             connected_socket = establish_connection(host, int(port), 5)
+            public_key, private_key = None, None
             if not connected_socket:
                 continue
             else:
                 if len(operation) > 3 and operation[3] == '-e': # Check if encryption is desired
-                    context = ssl.create_default_context()
-                    connected_socket.settimeout(12) # Increase timeout to compensate for input time
-                    connected_socket = context.wrap_socket(connected_socket, server_hostname=host)
+                    public_key = recv_public_key(connected_socket)
+                    print(public_key)
+                    client_public_key , private_key = rsa.newkeys(512)
+                    send_public_key(connected_socket, client_public_key)
                 while True:
                     try:
                         command = input(f'{host}:{port}>').split(' ')
@@ -91,9 +96,9 @@ def client_mode():
 
                     if command[0] == 'send' and command[1] == 'message': 
                         #Case 1 send message
-                        success = True
-                        while success:
-                            success = send_message_to_host(connected_socket)
+                        command_to_send = ' '.join(command)
+                        send_message(connected_socket, command_to_send + (CHUNK_SIZE - len(command_to_send))* ' ')
+                        send_message_to_host(connected_socket, public_key, private_key)
                     
                     elif command[0] == 'exec':
                         #Case 3 send  command for execution
@@ -127,6 +132,12 @@ def client_mode():
         elif operation[0] == 'history':
             #Case 5 get all histories
             get_history(connection)
+        
+        elif operation[0] == 'log':
+            #Case 6 print undecrypted values
+            global LOG_MODE
+            LOG_MODE = not LOG_MODE
+            print(f'Logging has changed to {LOG_MODE}')
 
 
 def server_mode(port:int, encrypt:bool=False):
@@ -137,16 +148,16 @@ def server_mode(port:int, encrypt:bool=False):
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.bind(('127.0.0.1', port))
         server_socket.listen()
+        keys = {}
 
         if encrypt:
-            context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-            context.load_default_certs(purpose=ssl.Purpose.SERVER_AUTH)
-            server_socket = context.wrap_socket(server_socket, server_side=True)
+            public, private = rsa.newkeys(512)
+            keys = {'public': public, 'private': private} 
         
 
         while True:
             connection, info = server_socket.accept()
-            client_thread = threading.Thread(target=client_handler, args=(connection, info))
+            client_thread = threading.Thread(target=client_handler, args=(connection, info, keys))
             client_thread.start()
 
     except Exception as exc:
@@ -155,16 +166,22 @@ def server_mode(port:int, encrypt:bool=False):
         server_socket.close()
     
 
-def client_handler(given_socket:socket.socket, info:tuple):
+def client_handler(given_socket:socket.socket, info:tuple, keys):
     'Handle each connection to server'
 
     try:
         print(f'Client {info[0]}:{info[1]} Connected.')
-        send_message(given_socket, '[Server response] Connected...\n')
+        if len(keys) > 0:
+            send_public_key(given_socket, keys['public'])
+            client_public_key = recv_public_key(given_socket)
+            print(client_public_key)
 
         result = True
         while result:
-            result = recv_and_proccess(given_socket)
+            if len(keys) > 0:
+                result = recv_and_proccess(given_socket, keys['private'], client_public_key)
+            else:
+                result = recv_and_proccess(given_socket)
 
     except Exception as exc:
         print(exc)
@@ -192,8 +209,6 @@ def establish_connection(host:str, port:int, timeout:int) -> socket.socket or No
     if res:
         try:
             print('Connection established.\nWaiting for server...')
-            msg = recv_message(created_socket)
-            print(msg, end='')
             print('DONE! Go ahead')
             return created_socket
         except Exception as exc:
@@ -204,11 +219,10 @@ def establish_connection(host:str, port:int, timeout:int) -> socket.socket or No
         return None
 
 
-def send_message(given_socket:socket.socket, message:str):
-    '''Send the message into the given socket
-       Returns total bytes sent'''
+def send_public_key(given_socket:socket.socket, key):
 
-    encoded_message = message.encode(ENCODING)
+    encoded_message = pickle.dumps(key)
+    encoded_message = encoded_message + b'\r\n'
     message_length = len(encoded_message)
     total_sent = 0
     retry = MAX_RETRY
@@ -232,20 +246,60 @@ def send_message(given_socket:socket.socket, message:str):
     return total_sent == message_length
 
 
-def send_message_to_host(given_socket:socket.socket):
+def recv_public_key(given_socket:socket.socket):
+
+    full_text = b''
+    while b'\r\n' not in full_text:
+        full_text += given_socket.recv(CHUNK_SIZE)
+
+    return  pickle.loads(full_text.split(b'\r\n')[0])
+
+def send_message(given_socket:socket.socket, message:str, public_key=None):
+    '''Send the message into the given socket
+       Returns total bytes sent'''
+
+    encoded_message = message.encode(ENCODING) if not public_key else rsa.encrypt(message.encode(ENCODING), public_key)
+    if LOG_MODE:
+        print("Here's what's on this socket!")
+        print(encoded_message)
+    
+    message_length = len(encoded_message)
+    total_sent = 0
+    retry = MAX_RETRY
+
+    while total_sent < message_length and retry > 0:
+        try:
+            sent_len = given_socket.send(encoded_message[total_sent:])
+        
+        except socket.timeout:
+            retry -= 1
+            continue
+        
+        except Exception as exc:
+            print(f'Something went wrong...\n{exc}\nTry again!')
+            given_socket.close()
+            total_sent += sent_len
+            return False
+        
+        total_sent += sent_len
+
+    return total_sent == message_length
+
+
+def send_message_to_host(given_socket:socket.socket, public_key=None, client_private_key=None):
     '''Recieve message from input
        send message nad recieve results'''
 
     try:
         inputs = get_multi_line_input()
-        success = send_message(given_socket, inputs)
+        success = send_message(given_socket, inputs, public_key)
 
         if not success:
             print('Could not transmit message.')
             return False
 
         print('\nWaiting for server...')
-        msg = recv_message(given_socket)
+        msg = recv_message(given_socket, client_private_key)
         print(msg, end='')
         print('Server response recieved!')
         return True
@@ -256,25 +310,34 @@ def send_message_to_host(given_socket:socket.socket):
         return False
         
 
-def recv_message(given_socket:socket.socket):
+def recv_message(given_socket:socket.socket, private_key=None):
     '''Read content of socket until time out occurs
        Returns the decoded read data'''
 
-    full_text = ''
+    full_text = b''
     while True:
         try:
             data = given_socket.recv(CHUNK_SIZE)
             if not data:
-                return full_text
-            full_text += data.decode(ENCODING)
+                break
+            full_text += data
         except socket.timeout:
-            return full_text
+            break
         except Exception as exc:
             print(exc)
-            return full_text
+            break
+
+    if LOG_MODE:
+        print('Here is what is on socket!')
+        print(full_text)
+
+    if private_key:
+        return rsa.decrypt(full_text, private_key).decode(ENCODING)
+    else:
+        return full_text.decode(ENCODING)
 
 
-def recv_and_proccess(given_socket:socket.socket):
+def recv_and_proccess(given_socket:socket.socket, private_key=None, client_public_key=None):
     '''Recieve messages and echo it back
        Execute commands echo back result
        Upload and download files'''
@@ -284,7 +347,6 @@ def recv_and_proccess(given_socket:socket.socket):
         
         while not first_run:
             first_run = given_socket.recv(CHUNK_SIZE).decode(ENCODING)
-
 
         if first_run.startswith('upload'):
             name = first_run.replace('upload', '').replace(' ', '')
@@ -308,7 +370,22 @@ def recv_and_proccess(given_socket:socket.socket):
             return False
         
         else:
-            send_message(given_socket, f'[Server response] Got {len(first_run)} of your message.\n')
+            got_message = ''
+            if private_key:
+                while not got_message:
+                    got_message = rsa.decrypt(given_socket.recv(CHUNK_SIZE), private_key).decode(ENCODING)
+            else:
+                while not got_message:
+                    got_message = given_socket.recv(CHUNK_SIZE).decode(ENCODING)
+            
+            print(got_message)
+            message = f'[Server response] Got {len(got_message)} bytes of your message.\n'
+
+            if private_key:
+                send_message(given_socket, message, client_public_key)
+            else:
+                send_message(given_socket, message)
+            
             return True
 
     except Exception as exc:
