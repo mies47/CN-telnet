@@ -98,6 +98,10 @@ def client_mode():
                         command_to_send = ' '.join(command)
                         send_message(connected_socket, command_to_send + (CHUNK_SIZE - len(command_to_send))* ' ')
                         send_message_to_host(connected_socket, public_key, private_key)
+
+                    elif command[0] == 'send' and command[1] == 'remote': 
+                        #Case 1 send message to remote
+                        send_message_to_host(connected_socket, public_key, private_key)
                     
                     elif command[0] == 'exec':
                         #Case 3 send  command for execution
