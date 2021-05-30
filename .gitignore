@@ -1,4 +1,3 @@
 .vscode
 test*
-*.pdf
 __pycache__
