@@ -1,13 +1,12 @@
 # TELNET Protocol Implementation
 
-This a P2P implementation of telnet. This program transfers data on TCP sockets as plain text. However there is also an option to send and recieve messages in encryption mode. It uses the rsa module to generate public and private keys and a handshake is done between client and server to transfer their public key to the otherside.
-
+This a P2P implementation of telnet. This program transfers data on TCP sockets as plain text.
 
 **This is not a complete implementation in telnet protocol based on [rfc854](https://datatracker.ietf.org/doc/html/rfc854). There is no option negotiation to establish an NVT**
 
 This script could be used for:
 
-1. Sending plain and encrypted text messages to server
+1. Sending plain text messages to server
 2. Upload and download files to and from a peer
 3. Execute commands on another peer and get the results
 4. Scan open ports of a host
@@ -23,11 +22,9 @@ To exit the program press Ctrl+c.
 
 To run in server mode you need to run the following command in terminal:
 ```
->python3 main.py server [portnumber] [-e]
+>python3 main.py server [portnumber]
 ```
 portnumber is the port server is going to listen on.
-
--e should be provided if you would like to enter encrypted mode.
 
 ## Client Mode
 To run in client mode you need to run the following command in terminal:
@@ -36,7 +33,7 @@ To run in client mode you need to run the following command in terminal:
 ```
 - To establish a connection:
     ```
-    telnet> open [host] [port] [-e]
+    telnet> open [host] [port]
     ```
     When connection is established you can:
 
